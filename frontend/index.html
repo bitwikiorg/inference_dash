@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Inference Balances</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="color-scheme" content="dark" />
+  <style>
+    /* Old terminal style */
+    :root {
+      --text: #dddddd;
+      --dim-text: #999;
+      --bg: #222222;
+      --header-bg: #111111;
+      --hover: #313131;
+      --border: #3a3a3a;
+      --accent: #00ff88;
+      --warn: #ff4757;
+      --mono: Consolas, 'Courier New', monospace;
+    }
+    
+    * { box-sizing: border-box; }
+    
+    html { height: 100%; }
+    
+    body {
+      font-family: var(--mono);
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
+      min-height: 100%;
+      background-image: 
+        linear-gradient(rgba(38, 38, 38, 0.3) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(38, 38, 38, 0.3) 1px, transparent 1px);
+      background-size: 40px 40px;
+      background-position: -1px -1px;
+    }
+    
+    /* Scanline effect */
+    body::after {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 999;
+      pointer-events: none;
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%);
+      background-size: 100% 4px;
+      opacity: 0.2;
+    }
+    
+    header {
+      background: var(--header-bg);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 11px 16px;
+      gap: 16px;
+    }
+    
+    .back-link {
+      color: var(--text);
+      text-decoration: none;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      font-weight: normal;
+      padding: 5px 9px;
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      transition: all 0.15s;
+    }
+    
+    .back-link:hover {
+      background: var(--hover);
+      border-color: var(--accent);
+      box-shadow: 0 0 6px var(--accent);
+      color: #fff;
+    }
+    
+    .title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      letter-spacing: 0.5px;
+    }
+    
+    .dot {
+      width: 6px;
+      height: 6px;
+      background: var(--accent);
+      border-radius: 50%;
+      animation: blink 1.4s steps(2, start) infinite;
+      box-shadow: 0 0 4px var(--accent);
+    }
+    
+    @keyframes blink {
+      to { visibility: hidden; }
+    }
+    
+    main {
+      padding: 32px 16px;
+      max-width: 480px;
+      margin: 0 auto;
+    }
+    
+    .container {
+      background: #1a1a1a;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 16px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+      position: relative;
+    }
+    
+    .section-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #888;
+      margin-bottom: 6px;
+    }
+    
+    .description {
+      font-size: 12.5px;
+      line-height: 1.4;
+      color: #999;
+      margin-bottom: 18px;
+      opacity: 0.9;
+    }
+    
+    .description strong {
+      color: var(--accent);
+      font-weight: normal;
+    }
+    
+    .balances {
+      margin: 20px 0;
+    }
+    
+    .balance-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding: 10px 0;
+      border-bottom: 1px solid #2a2a2a;
+    }
+    
+    .balance-row:last-child {
+      border-bottom: none;
+    }
+    
+    .resource {
+      font-family: var(--mono);
+      font-size: 13px;
+      color: #777;
+      letter-spacing: 1px;
+    }
+    
+    .amount {
+      font-family: var(--mono);
+      font-size: 18px;
+      color: var(--accent);
+      text-align: right;
+      min-width: 140px;
+      letter-spacing: 0.5px;
+      position: relative;
+    }
+    
+    /* Add a cursor */
+    .amount::after {
+      content: '█';
+      opacity: 0;
+      margin-left: 2px;
+      animation: blinker 1s steps(2) infinite;
+    }
+    
+    @keyframes blinker {
+      50% { opacity: 1; }
+    }
+    
+    .footer-info {
+      margin-top: 14px;
+      padding-top: 10px;
+      border-top: 1px solid #2a2a2a;
+      font-size: 10px;
+      color: #555;
+      text-align: center;
+      font-family: var(--mono);
+      letter-spacing: 0.2px;
+    }
+    
+    .loading .amount {
+      color: transparent;
+      position: relative;
+    }
+    
+    .loading .amount::before {
+      content: '_';
+      color: var(--accent);
+      animation: loading 1s infinite;
+      position: absolute;
+      left: 0;
+    }
+    
+    @keyframes loading {
+      0%, 100% { content: '_'; }
+      25% { content: 'v'; }
+      50% { content: '^'; }
+      75% { content: '='; }
+    }
+    
+    .error {
+      color: var(--warn);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <a class="back-link" href="https://hub.bitwiki.org/" target="_blank" rel="noopener">Back to Site</a>
+    <div class="title">
+      <div class="dot"></div>
+      Inference Balances
+    </div>
+  </header>
+  
+  <main>
+    <div class="container">
+      <div class="section-title">Current Daily Resource Balances</div>
+      <div class="description">
+        DIEM & VCU are per-day inference resources. Daily allocation resets at 
+        <strong>00:00 UTC-1</strong>. Data updated hourly via backend.
+      </div>
+      
+      <div id="balances" class="balances loading">
+        <div class="balance-row">
+          <span class="resource">DIEM</span>
+          <span class="amount">Loading</span>
+        </div>
+        <div class="balance-row">
+          <span class="resource">VCU</span>
+          <span class="amount">Loading</span>
+        </div>
+      </div>
+      
+      <div id="timestamp" class="footer-info"></div>
+    </div>
+  </main>
+  
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,86 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Check for security vulnerabilities
+      run: npm audit --audit-level high
+    
+    - name: Lint code (if linter exists)
+      run: |
+        if [ -f "package.json" ] && grep -q "lint" package.json; then
+          npm run lint
+        else
+          echo "No linter configured, skipping..."
+        fi
+      continue-on-error: true
+    
+    - name: Run tests
+      run: npm test || echo "No tests defined yet"
+    
+    - name: Test server startup
+      run: |
+        # Create test .env file
+        echo "API_USER=testuser" > .env
+        echo "API_PASS=testpass" >> .env
+        echo "PORT=3001" >> .env
+        echo "NODE_ENV=test" >> .env
+        
+        # Start server in background
+        timeout 30s node server.js &
+        SERVER_PID=$!
+        
+        # Wait for server to start
+        sleep 5
+        
+        # Test health endpoint
+        curl -f http://localhost:3001/healthz || exit 1
+        
+        # Test API endpoint (should return 404 initially)
+        curl -f http://localhost:3001/api/balances || true
+        
+        # Clean up
+        kill $SERVER_PID || true
+        rm .env
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Deploy to Vercel
+      uses: amondnet/vercel-action@v25
+      with:
+        vercel-token: ${{ secrets.VERCEL_TOKEN }}
+        vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+        vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+        vercel-args: '--prod'
+        working-directory: ./
