@@ -107,3 +107,48 @@ async function load() {
 
 // Initial load only - no polling
 load();
+
+const forceUpdateBtn = document.getElementById('force-update-btn');
+
+async function forceUpdate() {
+  if (!forceUpdateBtn) return;
+  
+  forceUpdateBtn.disabled = true;
+  forceUpdateBtn.textContent = 'UPDATING...';
+  
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
+
+    const res = await fetch('/api/trigger-update', {
+      method: 'POST',
+      signal: controller.signal,
+    });
+    
+    clearTimeout(timeoutId);
+
+    if (!res.ok) {
+      throw new Error(`Update failed: ${res.status}`);
+    }
+    
+    forceUpdateBtn.textContent = 'SUCCESS';
+    // Re-enable after a short delay and refresh data
+    setTimeout(load, 2000); // Refresh data after successful trigger
+
+  } catch (e) {
+    console.error('Force update error:', e);
+    forceUpdateBtn.textContent = 'ERROR';
+  } finally {
+    // Re-enable button after a delay, regardless of outcome
+    setTimeout(() => {
+      if (forceUpdateBtn) {
+        forceUpdateBtn.textContent = 'Force Update';
+        forceUpdateBtn.disabled = false;
+      }
+    }, 3000);
+  }
+}
+
+if (forceUpdateBtn) {
+  forceUpdateBtn.addEventListener('click', forceUpdate);
+}

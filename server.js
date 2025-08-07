@@ -147,6 +147,24 @@ app.get('/api/balances', (_req, res) => {
   res.json(latest);
 });
 
+// Webhook trigger endpoint for force update
+app.post('/api/trigger-update', async (req, res) => {
+  try {
+    const response = await fetch('https://n8n.bitwiki.org/webhook/5777be58-9a54-4524-a1fc-5d6ef88931a3', {
+      method: 'POST'
+    });
+
+    if (!response.ok) {
+      throw new Error(`Webhook failed: ${response.status}`);
+    }
+
+    res.json({ status: 'ok', message: 'update triggered' });
+  } catch (error) {
+    console.error('Webhook trigger error:', error);
+    res.status(500).json({ error: 'failed to trigger update' });
+  }
+});
+
 app.use('/', express.static('frontend'));
 
 app.get('/healthz', (_req, res) => res.json({ ok: true, timestamp: new Date().toISOString() }));
